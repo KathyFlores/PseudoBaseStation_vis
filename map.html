@@ -1,0 +1,753 @@
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>infovis</title>
+    <script src="https://cdn.bootcss.com/d3/3.5.17/d3.min.js"></script>
+    <script src="https://cdn.bootcss.com/d3/3.5.17/d3.min.js"></script>
+    <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+    <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+    <script src="rangeSlider.js"></script>
+    <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css" integrity="sha512-M2wvCLH6DSRazYeZRIm1JnYyh22purTM+FDB5CsyxtQJYeKq83arPe5wgbNmcFXGqiSH2XR8dT/fJISVA1r/zQ==" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js" integrity="sha512-lInM/apFSqyy1o6s89K4iQUKg6ppXEgsVxT35HbzUupEVRh2Eu9Wdl4tHj7dZO0s1uvplcYGmt3498TtHq+log==" crossorigin=""></script> -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.5/leaflet.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.5/leaflet.js"></script>
+    <style>
+        svg {
+            position: relative;
+        }
+        
+        body {
+            background: #112222;
+        }
+        
+        .jumbotron {
+            background: #112222;
+            margin: 0px;
+            padding: 0px;
+        }
+        
+        p {
+            color: #ddd;
+        }
+        
+        input[type=range] {
+            height: 15px;
+            -webkit-appearance: none;
+            border-radius: 10px;
+            background: -linear-gradient(to right, #558866, #d0d0d0 0%, #d0d0d0);
+            /*清除系统默认样式*/
+            width: 83%;
+        }
+        /*拖动块的样式*/
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            /*清除系统默认样式*/
+            height: 20px;
+            /*拖动块高度*/
+            width: 20px;
+            /*拖动块宽度*/
+            background: #fff;
+            /*拖动块背景*/
+            border-radius: 50%;
+            /*外观设置为圆形*/
+            border: solid 1px #ddd;
+            /*设置边框*/
+        }
+        
+        input[type=date] {
+            height: 20px;
+            border-radius: 10px;
+            border: solid 1px #ddd;
+            margin-bottom: 10px;
+            width: 83%
+        }
+        
+        input:focus {
+            outline: none;
+        }
+        
+        button {
+            outline: none!important;
+            height: 20px!important;
+            padding: 0!important;
+            border-radius: 10px!important;
+            margin-left: 0.33333333%!important;
+        }
+        
+        button[type=select] {
+            float: right;
+            outline: none!important;
+            height: 20px!important;
+            padding: 0!important;
+            border-radius: 10px!important;
+            margin-left: 1.33333333%!important;
+        }
+        
+        .btnactive {
+            color: white!important;
+            background-color: darkcyan!important;
+        }
+        
+        .overlay {
+            fill: none;
+            stroke: none;
+            pointer-events: all;
+        }
+        
+        .focusLine {
+            fill: none;
+            stroke: #7d9999;
+            stroke-width: 0.5px;
+        }
+        
+        hr {
+            margin-top: 0%;
+            border-top: 1px dashed #d0d0d0;
+        }
+        
+        .d3-tip {
+            line-height: 1;
+            font-weight: bold;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            border-radius: 10px;
+        }
+        
+        .d3-tip:after {
+            box-sizing: border-box;
+            display: inline;
+            font-size: 10px;
+            width: 100%;
+            line-height: 1;
+            color: rgba(0, 0, 0, 0.6);
+            content: "\25BC";
+            position: absolute;
+            text-align: center;
+        }
+        
+        .d3-tip.n:after {
+            margin: -1px 0 0 0;
+            top: 100%;
+            left: 0;
+        }
+        
+        circle {
+            fill: #000000;
+            stroke: white;
+        }
+    </style>
+
+    <style>
+        .info {
+            padding: 6px 8px;
+            font: 14px/16px Arial, Helvetica, sans-serif;
+            background: white;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+        
+        .info h4 {
+            margin: 0 0 5px;
+            color: #777;
+        }
+        
+        .legend {
+            text-align: left;
+            line-height: 18px;
+            color: #555;
+        }
+        
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="jumbotron">
+        <div id="map"></div>
+        <hr>
+        <div class="container">
+            <div class="row" style="margin-right:0px; margin-left:0px;">
+                <input class="col-sm-10" id="DatePicker" value="2017-02-23" type="date" min="2017-02-23" max="2017-04-26">
+                <button id="dateBTN" class="btn col-sm-2">选定日期</button>
+            </div>
+            <div class="row" style="margin-right:0px; margin-left:0px;">
+                <input class="col-sm-10" style="padding-left:0px; padding-right:0px;margin-top:2.5px;" id="myRange" type="range" value="0" />
+                <button id="playBTN" class="btn col-sm-2">自动播放</button>
+            </div> <br>
+
+            <div class="row" style="margin-right:0px; margin-left:0px;">
+                <font size="4" color="#ddd">选择时间：</font>
+                <strong><span style="font-size: larger;color:#ddd" id="time"></span></strong>
+                <button id="adBTN" class="btn col-sm-1" type="select">广告推销</button>
+                <button id="specialBTN" class="btn col-sm-1" type="select">特殊服务</button>
+                <button id="swindleBTN" class="btn col-sm-1" type="select">诈骗</button>
+                <button id="insultBTN" class="btn col-sm-1" type="select">攻击侮辱</button>
+                <button id="allBTN" class="btn col-sm-1 btnactive" type="select">全部</button>
+            </div>
+            <br>
+            <button id="showMAP" style="width:30%">隐藏地图</button>
+        </div>
+    </div>
+    <script>
+        //全局变量
+        var show;
+        var lat = new Array();
+        var lng = new Array();
+        var age = new Array();
+        var content = new Array();
+        var mycolor = new Array();
+        var myclass = new Array();
+        var DisplayChoice = new Array();
+
+        var tempFilename;
+
+        //提示框
+        var tip = d3.tip()
+            .attr('class', 'd3-tip')
+            .offset([-10, 0])
+            .html(function(d) {
+                return "<strong>Content:</strong><br></br><span style='color:white'>" + d.con + "</span>";
+            })
+
+
+        var len;
+        var type = new Array();
+
+        type[2001] = "#19CAAD";
+        type[2002] = "#8CC7B5";
+        type[2003] = "#A0EEE1";
+        type[2004] = "#BEE7E9";
+
+        type[1001] = "#F5DEB3";
+        type[1002] = "#FFA500";
+        type[1003] = "#FF8C00";
+        type[1004] = "#F4A460";
+        type[1005] = "#FF7F24";
+        type[1006] = "#FF8247";
+
+        type[3001] = "#FF3030";
+        type[0] = "#DBDBDB";
+
+
+
+        //处理时间选择
+        var now = 1487779200000; //now:当前时间戳
+        $('#time').html(getDate(now));
+        //console.log(new Date().toLocaleString());
+
+        function getDate(tm) {
+            var tt = new Date(parseInt(tm)).toLocaleString();
+            return tt;
+        }
+        $('#myRange').RangeSlider({
+            min: 0,
+            max: 86400,
+            step: 1,
+            callback: function($input) {}
+        });
+        var date;
+        var tttt = 0;
+        var autoplay = false;
+        var showMAP = true;
+        $(document).ready(function() {
+            $("#showMAP").click(function() {
+                if (showMAP == true) {
+                    $(".leaflet-tile-pane").css("display", "none");
+                    $(this).html("显示地图");
+                } else {
+                    $(".leaflet-tile-pane").css("display", "-webkit-box");
+                    $(this).html("隐藏地图");
+                }
+                showMAP = !showMAP;
+            });
+
+            d3.csv("20170223_classfied.csv", function(error, csvdata) {
+                if (error) {
+                    console.log(error);
+                } else {
+                    //console.log(csvdata);
+                    tempFilename = "20170223_classfied.csv";
+                    drawPoint("20170223_classfied.csv", csvdata);
+                }
+            });
+
+            $("#playBTN").click(function() {
+
+                if (autoplay === true)
+                    $(this).html("自动播放");
+                else
+                    $(this).html("暂停");
+                autoplay = !autoplay;
+                date = $("#DatePicker").val();
+                date = date.replace(/-/g, "/");
+                var _month = date.substring(5, 7);
+                var _day = date.substring(8, 10);
+                var _filename = "2017" + _month + _day + "_classfied.csv";
+                tttt = parseInt($("#myRange").val());
+                d3.csv(_filename, function(error, csvdata) {
+                    if (error) {
+                        console.log(error);
+                    } else {
+                        //console.log(csvdata);
+                        var int = self.setInterval(function() {
+                            tttt += 60;
+                            $("#myRange").val(tttt);
+                            tempFilename = _filename;
+                            drawPoint(_filename, csvdata);
+
+                            //console.log(autoplay);
+                            if (autoplay == false)
+                                clearInterval(int);
+
+                        }, 100);
+                    }
+                });
+            });
+
+            $("#dateBTN").click(function() {
+                date = $("#DatePicker").val();
+                date = date.replace(/-/g, "/");
+                var _month = date.substring(5, 7);
+                var _day = date.substring(8, 10);
+                var _filename = "2017" + _month + _day + "_classfied.csv";
+                //console.log(_filename);
+                $('#time').html(getDate(Date.parse(new Date(date + " 00:00:00"))));
+
+                d3.csv(_filename, function(error, csvdata) {
+                    if (error) {
+                        console.log(error);
+                    } else {
+                        //console.log(csvdata);
+                        drawPoint(_filename, csvdata);
+                    }
+                });
+            });
+
+            $("#adBTN").click(function() {
+                $("#allBTN").removeClass("btnactive");
+                $(this).toggleClass('btnactive');
+                var index = isInArray(1001)
+                if (index == -1)
+                    DisplayChoice.push(1001);
+                else
+                    DisplayChoice.splice(index, 1);
+                activeALL();
+
+                if (autoplay == false) {
+                    reDrawPoint();
+                }
+            });
+
+            $("#specialBTN").click(function() {
+                $("#allBTN").removeClass("btnactive");
+
+                $(this).toggleClass('btnactive');
+                var index = isInArray(1002)
+                if (index == -1)
+                    DisplayChoice.push(1002);
+                else
+                    DisplayChoice.splice(index, 1);
+                activeALL();
+
+                if (autoplay == false) {
+                    reDrawPoint();
+                }
+            });
+
+            $("#swindleBTN").click(function() {
+                $("#allBTN").removeClass("btnactive");
+
+                $(this).toggleClass('btnactive');
+                var index = isInArray(2001)
+                if (index == -1)
+                    DisplayChoice.push(2001);
+                else
+                    DisplayChoice.splice(index, 1);
+                activeALL();
+                if (autoplay == false) {
+                    reDrawPoint();
+                }
+            });
+
+            $("#insultBTN").click(function() {
+                $("#allBTN").removeClass("btnactive");
+
+                $(this).toggleClass('btnactive');
+                var index = isInArray(3001)
+                if (index == -1)
+                    DisplayChoice.push(3001);
+                else
+                    DisplayChoice.splice(index, 1);
+                activeALL();
+                if (autoplay == false) {
+                    reDrawPoint();
+                }
+            });
+
+            $("#allBTN").click(function() {
+                $(this).toggleClass('btnactive'); //每次点击的时候，将当前的元素切换active样式
+                $("#adBTN").removeClass("btnactive");
+                $("#insultBTN").removeClass("btnactive");
+                $("#specialBTN").removeClass("btnactive");
+                $("#swindleBTN").removeClass("btnactive");
+                DisplayChoice.splice(0, DisplayChoice.length);
+                if (autoplay == false) {
+                    reDrawPoint();
+                }
+            });
+
+            function activeALL() {
+                console.log(DisplayChoice);
+                if (DisplayChoice.length == 0)
+                    $("#allBTN").addClass("btnactive");
+            }
+
+            function reDrawPoint() {
+                d3.csv(tempFilename, function(error, csvdata) {
+                    if (error) {
+                        console.log(error);
+                    } else {
+                        //onsole.log(csvdata);
+                        drawPoint(tempFilename, csvdata);
+                    }
+                });
+            }
+
+            function isInArray(item) {
+                var n = DisplayChoice.length;
+                var i;
+                for (i = 0; i < n; i++) {
+                    if (DisplayChoice[i] == item)
+                        return i;
+                }
+                return -1
+            }
+
+        });
+
+
+
+        var height = document.body.scrollHeight - 180;
+        var width = document.body.scrollWidth;
+        $('#map').height(height);
+        $('#map').width(width);
+        var color = {
+            lineColor: "#ffffff",
+            //pointColor: "#ffdd88", //选中时边线颜色
+            fillColor: "#233",
+            onMouseColor: "#1b5c5b",
+            backgroundColor: "#112222",
+        };
+
+        var map = new L.Map("map", {
+                center: [40.275, 116.444],
+                zoom: 8
+            })
+            .addLayer(new L.TileLayer("http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"));
+
+        var legend = L.control({
+            position: 'bottomright'
+        });
+
+        legend.onAdd = function(map) {
+            var div = L.DomUtil.create('div', 'info legend');
+            var tablabels = ['伪冒', '炒股组织', '有害网站', '高利贷', '', '发票', '特殊服务', '买房', '招聘', '推销广告', '', '人生攻击', '', '无意义'];
+            var colors = ['#19CAAD', '#8CC7B5', '#A0EEE1', '#BEE7E9', '#FFFFFF', '#F5DEB3', '#FFA500', '#FF8C00', '#F4A460', '#FF7F24', '#FFFFFF', '#FF3030', '#FFFFFF', '#DBDBDB'];
+            var labels = [];
+
+            for (var i = 0; i < tablabels.length; i++) {
+                labels.push(
+                    '<i style="background:' + colors[i] + '"></i>' + tablabels[i])
+            }
+
+            div.innerHTML = labels.join('</br>');
+
+            return div;
+        };
+        legend.addTo(map);
+
+        var svg = d3.select(map.getPanes().overlayPane).append("svg:svg"),
+            defs = svg.append("defs"),
+            g = svg.append("g").attr("class", "leaflet-zoom-hide");
+        svg.attr("width", width).attr("height", height);
+        svg.call(tip);
+        colorCode = ["2001", "2002", "2003", "2004", "1001", "1002", "1003", "1004", "1005", "1006", "3001", "0"];
+        for (iter = 0; iter < 12; iter++) {
+            var rad = defs.append("radialGradient")
+                .attr("id", "radial" + colorCode[iter])
+                .attr("cx", "50%")
+                .attr("cy", "50%")
+                .attr("r", "50%")
+                .attr("fx", "50%")
+                .attr("fy", "50%");
+            rad.append("stop")
+                .attr("offset", "0%")
+                .attr("style", "stop-color:" + type[parseInt(colorCode[iter])])
+                .attr("stop-opacity", 1);
+            rad.append("stop")
+                .attr("offset", "20%")
+                .attr("style", "stop-color:" + type[parseInt(colorCode[iter])])
+                .attr("stop-opacity", 0.5);
+            rad.append("stop")
+                .attr("offset", "100%")
+                .attr("style", "stop-color:" + type[parseInt(colorCode[iter])])
+                .attr("stop-opacity", 0);
+
+        }
+
+        function drawPoint(_filename, csvdata) {
+            //console.log("displaychoice:", DisplayChoice);
+            //console.log(_filename);
+            d3.json("beijing.json", function(error, collection) {
+                if (error) throw error;
+
+                var transform = d3.geo.transform({
+                    point: projectPoint
+                });
+                var path = d3.geo.path().projection(transform);
+                var feature = g.selectAll("path")
+                    .data(collection.features)
+                    .enter()
+                    .append("path");
+
+                feature.attr("stroke", color.lineColor)
+                    .attr("stroke-width", 0.5)
+                    .attr("fill", color.fillColor)
+                    .attr("d", path)
+                    .attr("fill-opacity", opacity())
+                    .on("mouseover", function(d, i) {
+                        d3.select(this)
+                            .attr("fill", color.onMouseColor);
+                    })
+                    .on("mouseout", function(d, i) {
+                        d3.select(this)
+                            .attr("fill", color.fillColor);
+                    });
+
+
+                //d3.csv(_filename, function(error, csvdata) {
+                len = csvdata.length;
+                //console.log("len: " + len + "\n");
+
+                var max, min, temp;
+                __draw($("#myRange").val(), false);
+                $(document).on("input", "#myRange", function() {
+
+                    __draw($(this).val(), true);
+                    feature.attr("d", path)
+                        .attr("fill-opacity", opacity);
+
+                });
+
+                function __draw(d, changed) {
+                    //console.log("d", d);
+                    g.selectAll("circle").remove();
+                    lat = [];
+                    lng = [];
+                    age = [];
+                    content = [];
+
+                    mycolor = [];
+                    myclass = [];
+                    percent = d;
+
+                    // timeFormat(percent);
+
+                    //console.log(_filename);
+                    if (changed === false)
+                        var timestr = _filename.substring(0, 4) + "/" + _filename.substring(4, 6) + "/" + _filename.substring(6, 8) + " " + timeFormat(percent);
+                    else {
+                        //console.log($("#time").html().substring(0, 10));
+                        var timestr = $("#time").html().substring(0, 10) + timeFormat(percent);
+                    }
+
+                    function timeFormat(tm) {
+                        var hour = Math.floor(tm / 3600);
+                        var minute = Math.floor((tm % 3600) / 60);
+                        var second = Math.floor((tm % 3600) % 60);
+
+                        //console.log(hour, minute, second);
+                        return hour + ":" + minute + ":" + second;
+                    }
+                    now = Date.parse(new Date(timestr));
+                    //console.log(percent, now);
+                    $('#time').html(getDate(now));
+
+                    if (error) {
+                        console.log(error);
+                    }
+                    //console.log(csvdata);
+
+                    show = 0;
+                    max = 0;
+                    min = 100000000;
+                    for (var i = 0; i < len; i++) {
+
+                        if (Math.abs(now - csvdata[i].recitime) < 1000000) {
+
+                            lat[show] = csvdata[i].lat;
+                            lng[show] = csvdata[i].lng;
+                            // age[show] = Math.abs(csvdata[i].recitime - csvdata[i].conntime) / 1000;
+                            content[show] = csvdata[i].content;
+                            temp = csvdata[i].classnumber;
+                            //console.log("type: " + temp + "\n");
+                            mycolor[show] = type[temp];
+                            myclass[show] = temp;
+                            //  if (age[show] > max) max = age[show];
+                            //  if (age[show] < min) min = age[show];
+
+                            //console.log("lat: " + lat[show] + "\n");
+                            //console.log("lng: " + lng[show] + "\n");
+
+                            show++;
+                        }
+                    }
+                    // console.log("show: " + max + "\n");
+                    // console.log("show: " + min + "\n");
+
+                    for (var k = 0; k < show; k++) {
+
+                        var n = DisplayChoice.length;
+                        if (n != 0) {
+                            var i;
+                            for (i = 0; i < n; i++) {
+                                if (DisplayChoice[i] == myclass[k])
+                                    break;
+                            }
+                            if (i == n)
+                                continue;
+                        }
+
+                        var point = {
+                            lat: lat[k],
+                            lng: lng[k],
+                            con: content[k]
+                        };
+
+                        var s = myclass[k].toString();
+                        //console.log("string: " + s + "\n");
+
+                        var circle = g.append("circle")
+                            .datum(point)
+                            .attr("class", "point")
+                            .style("fill", mycolor[k])
+                            .attr("fill-opacity", 0.5)
+                            .attr("stroke-width", 0)
+                            .attr("cx", function(d) {
+                                return map.latLngToLayerPoint(d).x;
+                            })
+                            .attr("cy", function(d) {
+                                return map.latLngToLayerPoint(d).y;
+                            })
+                            .attr("style", "fill:url(#radial" + s + ")")
+                            .attr("r", map.getZoom())
+                            .on('mouseover', tip.show)
+                            .on('mouseout', tip.hide);
+
+                        //                        circle.transition()
+                        //                            .duration(1500)
+                        //                            .ease("circle")
+                        //                            .attr("r", map.getZoom()/5)
+                        //                            .style("fill",mycolor[k])
+                        //                            .style("fill-opacity", 0.2);
+
+                    }
+
+                }
+
+
+                map.on("zoomend viewreset", reset);
+                reset();
+                //                drawFocusLine();
+
+                function reset() {
+                    var bounds = path.bounds(collection),
+                        topLeft = bounds[0],
+                        bottomRight = bounds[1];
+                    //console.log("hi");
+                    svg.attr("width", bottomRight[0] - topLeft[0])
+                        .attr("height", bottomRight[1] - topLeft[1])
+                        .style("left", topLeft[0] + "px")
+                        .style("top", topLeft[1] + "px");
+
+                    g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
+
+                    feature.attr("d", path)
+                        .attr("fill-opacity", opacity());
+
+                    g.selectAll("circle")
+                        .attr("cx", function(d) {
+                            return map.latLngToLayerPoint(d).x;
+                        })
+                        .attr("cy", function(d) {
+                            return map.latLngToLayerPoint(d).y;
+                        })
+                        .attr("r", map.getZoom());
+                }
+
+                function projectPoint(x, y) {
+                    var point = map.latLngToLayerPoint(new L.LatLng(y, x));
+                    //console.log(point);
+                    this.stream.point(point.x, point.y);
+                }
+
+                function opacity() {
+                    return 0.15 * Math.cos(($("#myRange").val()) * Math.PI / 43200) + 0.3;
+                }
+                // // 画参考线
+                // function drawFocusLine() {
+                //     var focussvg = d3.select(map.getPanes().overlayPane).append("svg").attr("width", width).attr("height", height),
+                //         focusg = focussvg.append("g").attr("class", "leaflet-zoom-hide");
+                //     var focus = focusg.append('g').style('display', 'none');
+                //     focus.append('line')
+                //         .attr('id', 'focusLineX')
+                //         .attr('class', 'focusLine');
+                //     focus.append('line')
+                //         .attr('id', 'focusLineY')
+                //         .attr('class', 'focusLine');
+                //     focusg.append('rect')
+                //         .attr('class', 'overlay')
+                //         .attr('width', width)
+                //         .attr('height', height)
+                //         .on('mouseover', function() {
+                //             focus.style('display', null);
+                //         })
+                //         .on('mouseout', function() {
+                //             focus.style('display', 'none');
+                //         })
+                //         .on('mousemove', function() {
+                //             var mouse = d3.mouse(this);
+                //             // console.log(mouse);
+                //             px = mouse[0];
+                //             py = mouse[1];
+                //             focus.select('#focusLineX')
+                //                 .attr('x1', px).attr('y1', 0)
+                //                 .attr('x2', px).attr('y2', height);
+                //             focus.select('#focusLineY')
+                //                 .attr('x1', 0).attr('y1', py)
+                //                 .attr('x2', width).attr('y2', py);
+                //             var coords = map.layerPointToLatLng([px, py]);
+                //             console.log(coords);
+                //             $('#pos').html(coords.lat.toFixed(4) + ', ' + coords.lng.toFixed(4));
+                //         });
+                // }
+            });
+        }
+    </script>
+</body>
+
+</html>
